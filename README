@@ -1,0 +1,164 @@
+This is a README for CS133 project by
+Weizhe Shi, Wenchuan Weng, William Leibzon, Brandon Fratello
+
+1. All code is contained in a /project/ subdirectory. You have to "cd" 
+into that directory to compile and run our code. The project directory
+should contain the following files:
+
+add.c      domath      mult.c        num.hex     test.c
+add_s.c    largeint.h  mult_kar.c    README.txt  test_utils.c
+bitwise.c  main.c      mult_kar_s.c  sub.c       utils.c
+div.c      Makefile    num.dec       sub_s.c
+
+In above:
+  add.c   - contains parallel add function
+  add_s.c - contains sequential add
+  bitwise.c - parall and sequential versions of all bitwise operations:
+              XOR, AND, OR, Left Shift, Right Shift
+  div.c   - contains division functions (both parallel and sequential,
+				         which in our case is also Newton)
+  largeint.h - a header file that contains definition of large_int struct
+               and defintions of all functions. Has couple tunable parameters 
+  main.c  - main function (quite small actually)
+  Makefile - makefile to compile the project code
+  mult.c  - sequential and parallel versions of multiplication by reduction  
+  mult_kar.c - parallel version of Karatsuba multiplication 
+  mult_kar_s.c - sequential version of Karatsuba multiplication
+  sub.c   - parallel version of substract function
+  sub_s.c - sequential version of substract function
+  test.c  - batch test framework that produces CSV files
+  test_utils.c - functions used both during normal single-operation tests
+                 and by batch test framework
+  utils.c - various functions for such as compare, word-shift functions 
+	    and all wrapper functions that call GMP library
+  domath  - the progam compiled on Linux Enterprise Redhat 5.4 
+  num.dec - an example of a file in decimal format that program can use 
+  num.hex - an example of a file in hexadecimal format the that procam can use
+  README.txt - the file you're looking at
+  Writeup.Doc - Documentation on the Project
+
+2. It can compile by running 'make'. This should work an any standard
+standard Linux system and we have tested on lnxsrv cluster at UCLA
+and on laptops and desktops running Ubuntu and CentOS. If there are any
+problems Makefile can be modified to define different path to libraries.
+We require 'rt' (real time clock) library, 'gmp' (Gnu Math Precision),
+and version of GCC that supports compiling OpenMP with "-fopenmp". We
+tested with gcc 4.x and above and most gcc 3.x should also work.
+
+Running 'make' will produce 'domath' binary in project directory 
+which can be run in several modes. Running it as is will provide
+a simple help output like this:
+ 
+Usage: ./domath [debug|load_hex|load_dec|test] <size num1> <oper> <size num2>
+   where <size num> are number of bits in multiple of 32 bits
+   and <oper> is one of:
+      add | add_s  - add numbers
+      sub | sub_s  - substract
+      mul | mul_s  - multiply
+     kmul | kmul_s - Karatsuba multiply
+      div | div_s  - divide
+     ndiv | ndiv_s - disivion by Netwon method
+     lsft | lsft_s - Bitwise left shift
+     rsft | rsft_s - Bitwise right shift
+      and | and_s  - Bitwise AND
+       or | or_s   - Bitwise OR
+      xor | xor_s  - Bitwise XOR
+      not | not_s  - Bitwise NOT
+      tst | tst_s  - Bitwise equality test
+
+3. This is a help screen from the main mode to perform one operations with
+two random integers. Size is a number of words in an integer where word
+is unsigned 32-bit of data. As an example to test sequential Karatsuba 
+on two 100-world (3,200 bits) numbers you can type:
+  ./domath 100 kmul_s 100
+
+The program will time the operation and will also do the same operation
+using gnu math library so if results are not identical it will crash
+at the end (forced crash with assert). For parallel operations by default
+it will run with on the number of cores OpenMP sees on a system. On
+lnxsrv this is 16 threads.
+
+Optionally the program can also be run in a mode that produces a lot
+of debugging information. This is done by adding "debug" as a first
+argument:
+  ./domath debug 100 kmul_s 100
+
+Please note that for substruction the 2nd number size should be small
+than the first number size as the program does not support substruction
+that results in negative numbers and if numbers are the same size the
+possibility of this happening is 50%.
+
+4. Second mode to run the program is a batch test mode when first
+argument is 'test' (note that debug and test are mutually exclusive).
+It will produce its own help screen when run as './domath test' :
+
+Usage: ./domath test <oper> <num of cores> <num of rounds>
+       <int> <int> <int> range of fst input
+       <int> <int> <int> range of snd input
+
+       range is in form of <start> <end> <step>
+       say range is <0> <100> <10>
+       I'll test at point 0, 10, 20, 30, .. 100
+       11 points
+       it's for (i = fst_sz_start; i <= fst_sz_end; i += fst_sz_step)
+       If both operands is in form of range, then I'll test
+       every combination, and output to CSV file
+
+   and <oper> is one of:
+      add | add_s  - add numbers
+      sub | sub_s  - substract
+      mul | mul_s  - multiply
+     kmul | kmul_s - Karatsuba multiply
+      div | div_s  - divide
+     ndiv | ndiv_s - disivion by Netwon method
+     lsft | lsft_s - Bitwise left shift
+     rsft | rsft_s - Bitwise right shift
+      and | and_s  - Bitwise AND
+       or | or_s   - Bitwise OR
+      xor | xor_s  - Bitwise XOR
+      not | not_s  - Bitwise NOT
+      tst | tst_s  - Bitwise equality test
+
+Example test:
+   ./domath test add_s 4 10 10 110 20 100 1000 100
+
+In this mode multiple tests are run in batch mode. The first input parameter
+is how many processors (cpu cores) openmp can use. Second number is how many
+times to run the operation (in case of Heisenbugs) and 6 additional numbers
+specify sequence of sizes for operands A and B. For every size from the
+sequence of A the operation is performed with every sequence size number
+for B. Like with previous mode all numbers are randomly generated.
+
+If the results of operation can not be confirmed using Gnu Math Library,
+the program will immediately exit with an error (forced using assert).
+
+Otherwise the program will produce results to be written in a .CSV file
+with 3 columns. First column is size of A number, second is size of B
+number and 3rd time in seconds that it took to complete this operation.
+
+5. Third and final mode of use allows to perform operation using data
+supplied in two text files. The data can be in either decimal or
+hexadecimal format and results of the operation are printed to the
+standard output together with time it took to complete the operation.
+Help screen for this mode of operation is:
+
+Usage: ./domath load_hex|load_dec <file1> <oper> <file2>
+   where <file1> and <file2> are two files that contain
+   data for the operation to be performed.
+   and <oper> is one of:
+      add | add_s  - add numbers
+      sub | sub_s  - substract
+      mul | mul_s  - multiply
+     kmul | kmul_s - Karatsuba multiply
+      div | div_s  - divide
+     ndiv | ndiv_s - disivion by Netwon method
+     lsft | lsft_s - Bitwise left shift
+     rsft | rsft_s - Bitwise right shift
+      and | and_s  - Bitwise AND
+       or | or_s   - Bitwise OR
+      xor | xor_s  - Bitwise XOR
+      not | not_s  - Bitwise NOT
+      tst | tst_s  - Bitwise equality test
+
+So the use here is very simple - <file1> contains data for operand A,
+<file2> data for operand B and <oper> is what to do.
